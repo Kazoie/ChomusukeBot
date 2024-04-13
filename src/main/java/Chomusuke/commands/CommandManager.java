@@ -1,13 +1,23 @@
 package Chomusuke.commands;
 
+import Chomusuke.functionalities.Team;
+import Chomusuke.functionalities.User;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.internal.entities.GuildImpl;
+import net.dv8tion.jda.internal.entities.emoji.CustomEmojiImpl;
 import org.jetbrains.annotations.NotNull;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -18,6 +28,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class CommandManager extends ListenerAdapter {
 
@@ -49,38 +60,97 @@ public class CommandManager extends ListenerAdapter {
                             JsonObject planet = res.get(i).getAsJsonObject();
                             allPlanet[i] = planet;
                         }
+                            //EXAMPLE OF ONE JsonObject
+//                        {
+//                            "planetIndex": 169,
+//                                "name": "Estanu",
+//                                "faction": "Terminids",
+//                                "players": 247207,
+//                                "health": 66933,
+//                                "maxHealth": 1000000,
+//                                "percentage": 93.3067,
+//                                "defense": false,
+//                                "majorOrder": false,
+//                                "biome": {
+//                            "slug": "icemoss",
+//                                    "description": "Ice and moss-covered rock can be found across most of the surface of this planet."
+//                        }
 
-                        String begintext = "# :rotating_light: **Actual Galactic War Status** :rotating_light: \n";
-                        String planetinfo = "";
+
+                        String begintext ="# :rotating_light: **Actual Galactic War Status** :rotating_light: \n";
+                        String planetinfo = "```";
                         for (JsonObject jsonObject : allPlanet) {
                             planetinfo += (jsonObject.get("name")
-                                    + "is controlled by the"
+                                    + " is controlled by the "
                                     + jsonObject.get("faction")
-                                    + "liberation still in progress, actual percentage : "
+                                    + ", liberation still in progress, actual percentage : "
                                     + jsonObject.get("percentage")
-                                    + "\n \n"
+                                    + "\n"
                             );
                         }
-                        planetinfo = planetinfo.replaceAll("\""," ");
+                        planetinfo = planetinfo.replaceAll("\"","");
 
-                        String majorOrder = "**HIGH PRIORITY BROADCAST : MAJOR ORDER COMPLETION** \n";
-                        String focusOrder = "";
-                        for(JsonObject jsonObject : allPlanet){
-                            if (jsonObject.get("majorOrder").getAsBoolean() || jsonObject.get("defense").getAsBoolean()){
-                                focusOrder += (jsonObject.get("name")
-                                    + "is part of the major order, FOCUS IT HELLDIVER ! \n"
-                                );
-                            }
-                        }
-                        focusOrder = focusOrder.replaceAll("\""," ");
 
-                        event.reply(begintext + planetinfo + majorOrder + focusOrder).queue();                    }
+                        event.reply(begintext + planetinfo + " ```").queue();                    }
 
 
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
         }
+            else if (command.equals("teammaker")) {
+                System.out.println("TEAMMAKER asked");
+                OptionMapping option = event.getOption("players");
+                String result = "";
+
+                if (option != null) {
+                    String bunch = option.getAsString();
+                    String[] users = bunch.split(";");
+                    ArrayList<User> userList = new ArrayList<>();
+
+                    for (String str : users) {
+                        User user = new User(str);
+                        userList.add(user);
+                    }
+
+                    option = event.getOption("teamlength"); //number of player per team
+                    if (option != null) {
+                        int teamlength = option.getAsInt();
+                        Random r = new Random();
+
+                        int numberOfTeam = userList.size() / teamlength; // total number of teams
+                        if (userList.size() % teamlength != 0) {
+                            event.reply("nombre de joueur incorrect").queue();
+
+                        } else {
+
+                            Team[] teamList = new Team[numberOfTeam];
+                            for (int i = 0; i < numberOfTeam; i++) {
+
+                                Team team = new Team(teamlength); // i create a team
+
+                                for (int x = 0; x < team.getTeamLength(); x++) {
+                                    int pickedIndex = r.nextInt(userList.size()); //i pick a random user in my userlist
+                                    team.addTeamMember(userList.get(pickedIndex)); //i add it in my team
+                                    userList.remove(userList.get(pickedIndex));// i remove the user picked from userlist
+                                    teamList[i] = team; //i put my team in teamlist
+                                }
+                            }
+                            for (int i = 0; i < teamList.length; i++) {
+                                ArrayList<User> resultUser = teamList[i].getTeamcomp();
+                                result += "Team " + i + " : ";
+                                for (User user : resultUser) {
+                                    result += user.getUsername() + "/";
+                                }
+                                result += " \n";
+                            }
+                            event.reply(result).queue();
+                        }
+
+                    }
+                }
+
+            }
     }
 
     //Guild command
@@ -88,6 +158,10 @@ public class CommandManager extends ListenerAdapter {
     public void onGuildReady(@NotNull GuildReadyEvent event){
         List<CommandData> commandDataList = new ArrayList<>();
         commandDataList.add(Commands.slash("hd2","Provides the current status of all planets along with their player count"));
+
+        OptionData option1 = new OptionData(OptionType.STRING,"players","The bunch of user, separated by semicolon like this : player1;player2;... ",true);
+        OptionData option2 = new OptionData(OptionType.INTEGER,"teamlength","The numbers of players in each team",true);
+        commandDataList.add(Commands.slash("teammaker","create a team from a bunch of user").addOptions(option1,option2));
         event.getGuild().updateCommands().addCommands(commandDataList).queue();
     }
 
