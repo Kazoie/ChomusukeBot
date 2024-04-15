@@ -124,7 +124,6 @@ public class CommandManager extends ListenerAdapter {
 
                                 Team[] teamList = new Team[numberOfTeam];
                                 for (int i = 0; i < numberOfTeam; i++) {
-
                                     Team team = new Team(teamlength); // i create a team
 
                                     for (int x = 0; x < team.getTeamLength(); x++) {
