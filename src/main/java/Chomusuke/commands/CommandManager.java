@@ -143,7 +143,6 @@ public class CommandManager extends ListenerAdapter {
                                 }
                                 event.reply(result).queue();
                             }
-
                         }
                     }
                 }
@@ -158,9 +157,9 @@ public class CommandManager extends ListenerAdapter {
                         Random r = new Random();
                         int result = r.nextInt(1,bound+1);
                         if (result == 1 ){
-                            event.reply("Resultat du roll : "+result + " défaite !").queue();
+                            event.reply("Roll initial : "+ bound +", Resultat du roll : "+result + " défaite !").queue();
                         } else {
-                            event.reply("Resultat du roll : " + result).queue();
+                            event.reply("Roll initial : "+ bound +", Resultat du roll : " + result).queue();
                         }
                     }
                 }
