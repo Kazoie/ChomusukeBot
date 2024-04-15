@@ -5,19 +5,15 @@ import Chomusuke.functionalities.User;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
-import net.dv8tion.jda.internal.entities.GuildImpl;
-import net.dv8tion.jda.internal.entities.emoji.CustomEmojiImpl;
 import org.jetbrains.annotations.NotNull;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -38,7 +34,7 @@ public class CommandManager extends ListenerAdapter {
 
             if(command.equals("hd2")) {
                 try {
-                    System.out.println("HellDiversWarStatus asked");
+                    System.out.println("HellDiversWarStatus asked by "+event.getUser().getName());
                     URL url = new URL("https://helldiverstrainingmanual.com/api/v1/war/campaign");
                     HttpsURLConnection req = (HttpsURLConnection) url.openConnection();
                     req.setRequestMethod("GET");
@@ -99,7 +95,7 @@ public class CommandManager extends ListenerAdapter {
                 }
         }
             else if (command.equals("teammaker")) {
-                System.out.println("TEAMMAKER asked");
+                System.out.println("Teammaker asked by " +event.getUser().getName());
                 OptionMapping option = event.getOption("players");
                 String result = "";
 
@@ -116,52 +112,76 @@ public class CommandManager extends ListenerAdapter {
                     option = event.getOption("teamlength"); //number of player per team
                     if (option != null) {
                         int teamlength = option.getAsInt();
-                        Random r = new Random();
-
-                        int numberOfTeam = userList.size() / teamlength; // total number of teams
-                        if (userList.size() % teamlength != 0) {
-                            event.reply("nombre de joueur incorrect").queue();
-
+                        if (teamlength <= 0) {
+                            event.reply("Il est impossible d'avoir une taille d'équipe négative").queue();
                         } else {
+                            Random r = new Random();
 
-                            Team[] teamList = new Team[numberOfTeam];
-                            for (int i = 0; i < numberOfTeam; i++) {
+                            int numberOfTeam = userList.size() / teamlength; // total number of teams
+                            if (userList.size() % teamlength != 0) {
+                                event.reply("nombre de joueur incorrect").queue();
+                            } else {
 
-                                Team team = new Team(teamlength); // i create a team
+                                Team[] teamList = new Team[numberOfTeam];
+                                for (int i = 0; i < numberOfTeam; i++) {
 
-                                for (int x = 0; x < team.getTeamLength(); x++) {
-                                    int pickedIndex = r.nextInt(userList.size()); //i pick a random user in my userlist
-                                    team.addTeamMember(userList.get(pickedIndex)); //i add it in my team
-                                    userList.remove(userList.get(pickedIndex));// i remove the user picked from userlist
-                                    teamList[i] = team; //i put my team in teamlist
+                                    Team team = new Team(teamlength); // i create a team
+
+                                    for (int x = 0; x < team.getTeamLength(); x++) {
+                                        int pickedIndex = r.nextInt(userList.size()); //i pick a random user in my userlist
+                                        team.addTeamMember(userList.get(pickedIndex)); //i add it in my team
+                                        userList.remove(userList.get(pickedIndex));// i remove the user picked from userlist
+                                        teamList[i] = team; //i put my team in teamlist
+                                    }
                                 }
-                            }
-                            for (int i = 0; i < teamList.length; i++) {
-                                ArrayList<User> resultUser = teamList[i].getTeamcomp();
-                                result += "Team " + i + " : ";
-                                for (User user : resultUser) {
-                                    result += user.getUsername() + "/";
+                                for (int i = 0; i < teamList.length; i++) {
+                                    ArrayList<User> resultUser = teamList[i].getTeamcomp();
+                                    result += "Team " + i + " : ";
+                                    for (User user : resultUser) {
+                                        result += user.getUsername() + "/";
+                                    }
+                                    result += " \n";
                                 }
-                                result += " \n";
+                                event.reply(result).queue();
                             }
-                            event.reply(result).queue();
+
                         }
-
                     }
                 }
-
+            } else if (command.equals("deathroll")) {
+                System.out.println("deathroll asked by " + event.getUser().getName());
+                OptionMapping option = event.getOption("roll");
+                int bound = option.getAsInt();
+                if (option != null) {
+                    if (bound <= 0) {
+                        event.reply("Votre borne ne peut pas être négative");
+                    } else {
+                        Random r = new Random();
+                        int result = r.nextInt(1,bound+1);
+                        if (result == 1 ){
+                            event.reply("Resultat du roll : "+result + " défaite !").queue();
+                        } else {
+                            event.reply("Resultat du roll : " + result).queue();
+                        }
+                    }
+                }
             }
+
     }
 
     //Guild command
     @Override
     public void onGuildReady(@NotNull GuildReadyEvent event){
         List<CommandData> commandDataList = new ArrayList<>();
+
         commandDataList.add(Commands.slash("hd2","Provides the current status of all planets along with their player count"));
 
         OptionData option1 = new OptionData(OptionType.STRING,"players","The bunch of user, separated by semicolon like this : player1;player2;... ",true);
         OptionData option2 = new OptionData(OptionType.INTEGER,"teamlength","The numbers of players in each team",true);
         commandDataList.add(Commands.slash("teammaker","create a team from a bunch of user").addOptions(option1,option2));
+
+        OptionData option3 = new OptionData(OptionType.INTEGER,"roll","the maximum boundary of your roll",true);
+        commandDataList.add(Commands.slash("deathroll","Run a deathroll from bound to 0").addOptions(option3));
         event.getGuild().updateCommands().addCommands(commandDataList).queue();
     }
 
@@ -169,7 +189,7 @@ public class CommandManager extends ListenerAdapter {
 //    @Override
 //    public void onReady(@NotNull ReadyEvent event){
 //        List<CommandData> commandDataList = new ArrayList<>();
-//        commandDataList.add(Commands.slash("helldiverswarstatus","Provides the current status of all planets along with their player count"));
 //        event.getJDA().updateCommands().addCommands(commandDataList).queue();
 //    }
+
 }
