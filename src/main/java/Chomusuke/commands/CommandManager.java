@@ -131,7 +131,7 @@ public class CommandManager extends ListenerAdapter {
                                         int pickedIndex = r.nextInt(userList.size()); //i pick a random user in my userlist
                                         team.addTeamMember(userList.get(pickedIndex)); //i add it in my team
                                         userList.remove(userList.get(pickedIndex));// i remove the user picked from userlist
-                                        teamList[i] = team; //i put my team in teamlist
+                                        teamList[i] = team; // i put my team in teamlist
                                     }
                                 }
                                 for (int i = 0; i < teamList.length; i++) {
