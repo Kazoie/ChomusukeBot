@@ -5,33 +5,35 @@ import Chomusuke.functionalities.User;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.utils.FileUpload;
 import org.jetbrains.annotations.NotNull;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
 
 import javax.net.ssl.HttpsURLConnection;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.URL;
-import java.util.ArrayList;
+import java.sql.*;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
 
 public class CommandManager extends ListenerAdapter {
-
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        String command = event.getName();
 
+        String command = event.getName();
             if(command.equals("hd2")) {
                 try {
                     System.out.println("HellDiversWarStatus asked by "+event.getUser().getName());
@@ -40,6 +42,7 @@ public class CommandManager extends ListenerAdapter {
                     req.setRequestMethod("GET");
 
                     if (req.getResponseCode() == 200){
+                        Connection conn = connectToDB();
                         InputStream inputStream = req.getInputStream();
                         BufferedReader in = new BufferedReader(new InputStreamReader(inputStream));
                         String input;
@@ -72,6 +75,22 @@ public class CommandManager extends ListenerAdapter {
 //                                    "description": "Ice and moss-covered rock can be found across most of the surface of this planet."
 //                        }
 
+                        //INSERT DATE
+                        for (JsonObject jsonObject : allPlanet){
+
+                            int index = jsonObject.get("planetIndex").getAsInt();
+                            int players = jsonObject.get("players").getAsInt();
+                            float percentage = jsonObject.get("percentage").getAsFloat();
+
+                            PreparedStatement st = conn.prepareStatement("INSERT INTO ensemble_planetes (id,nb_joueur,pourcentageliberation) VALUES (?,?,?)");
+                            st.setObject(1,index);
+                            st.setObject(2,players);
+                            st.setObject(3,percentage);
+                            st.executeUpdate();
+                            st.close();
+                        }
+
+
 
                         String begintext ="# :rotating_light: **Actual Galactic War Status** :rotating_light: \n";
                         String planetinfo = "```";
@@ -92,8 +111,10 @@ public class CommandManager extends ListenerAdapter {
 
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
                 }
-        }
+            }
             else if (command.equals("teammaker")) {
                 System.out.println("Teammaker asked by " +event.getUser().getName());
                 OptionMapping option = event.getOption("players");
@@ -163,6 +184,62 @@ public class CommandManager extends ListenerAdapter {
                         }
                     }
                 }
+            } else if (command.equals("hd2graph")){
+                System.out.println("hd2graph asked by " + event.getUser().getName());
+                HashMap<Timestamp,Float> evolution = new HashMap<>();
+                OptionMapping option = event.getOption("planetname");
+                String planetName = option.getAsString();
+                if (option != null){
+                    try {
+
+                    //RETRIEVE PLANET'S ID BY NAME
+                    Connection conn = connectToDB();
+                    PreparedStatement st = null;
+                    st = conn.prepareStatement("SELECT (id) FROM planete WHERE nomplanete LIKE ?");
+                    st.setObject(1,"%"+ planetName +"%");
+                    ResultSet rs = st.executeQuery();
+
+                    PreparedStatement st2 = null;
+                    st2 = conn.prepareStatement("SELECT (pourcentageliberation),(date) FROM ensemble_planetes WHERE id = ?");
+                    int id = 0;
+                    if (rs.next()) {
+                        id = rs.getInt(1);
+                    }
+                    st2.setObject(1,id);
+                    ResultSet rs2 = st2.executeQuery();
+                    while (rs2.next()){
+                        evolution.put(rs2.getTimestamp(2),rs2.getFloat(1));
+                    }
+                    rs.close();
+                    rs2.close();
+                    st.close();
+                    st2.close();
+
+                        DefaultCategoryDataset line_chart_dataset = new DefaultCategoryDataset();
+                        for (Map.Entry m : evolution.entrySet()){
+                            Float percentage = (Float) m.getValue();
+                            Timestamp ts = (Timestamp) m.getKey();
+                         line_chart_dataset.addValue(percentage,"Date",ts);
+                        }
+
+                        JFreeChart lineChartObject = ChartFactory.createLineChart(
+                                "Evolve of Liberation percentage", "time",
+                                "Percentage",
+                                line_chart_dataset, PlotOrientation.VERTICAL,
+                                true, true, false);
+
+                        int width = 640;
+                        int height = 480;
+                        File lineChart = new File("LineChart.jpeg");
+                        ChartUtilities.saveChartAsJPEG(lineChart, lineChartObject, width, height);
+
+                        FileUpload fileUpload = FileUpload.fromData(lineChart);
+                        event.reply("Result").addFiles(fileUpload).queue();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
             }
 
     }
@@ -180,6 +257,10 @@ public class CommandManager extends ListenerAdapter {
 
         OptionData option3 = new OptionData(OptionType.INTEGER,"roll","the maximum boundary of your roll",true);
         commandDataList.add(Commands.slash("deathroll","Run a deathroll from bound to 0").addOptions(option3));
+
+        OptionData option4 = new OptionData(OptionType.STRING,"planetname","The planet's name you want to see information",true);
+        commandDataList.add(Commands.slash("hd2graph","Display a graph for a chosen planet").addOptions(option4));
+
         event.getGuild().updateCommands().addCommands(commandDataList).queue();
     }
 
@@ -190,4 +271,22 @@ public class CommandManager extends ListenerAdapter {
 //        event.getJDA().updateCommands().addCommands(commandDataList).queue();
 //    }
 
+    public Connection connectToDB() {
+        Dotenv config = Dotenv.configure().load(); //load my config
+        String dbURL = config.get("DBURL");
+        String username = config.get("DBUSERNAME");
+        String password = config.get("DBPASSWORD");
+        try {
+            //connection to DB
+            String urlpg = dbURL;
+            Properties props = new Properties();
+            props.setProperty("user", username);
+            props.setProperty("password", password);
+            Connection conn = DriverManager.getConnection(urlpg, props);
+            return conn;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
 }
