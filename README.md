@@ -1,7 +1,7 @@
 # CHOMUSUKE BOT
 
 ## Summary
-Chomusuke bot is my new personnal project made in java to offer a functionnal bot that can track game data from the famouse game "HellDivers2", it provide commands to retrieve data from the game at a time T and to show them simply.
+Chomusuke bot is my new personnal project made in java to offer a functionnal bot that can track game data from the famous game "HellDivers2", it provide commands to retrieve data from the game at a time T and to show them simply.
 but he can also connect to a DataBase made with PostgreSQL and running on a docker to show chart about the game in discord.
 
 ## Information
@@ -16,5 +16,5 @@ Well, for now i tried to make it easily usable by other people but idk if its re
 that DBURL is configured to connect to a postgres database and the used libraries are configured to it so i don't think you can use another DB for now.
 
 ##  Special Thanks
-A special Thanks to @Xemuth and @diviperr for helping me making this bot working fine and providing me some good advice during develoment
+A special Thanks to @Xemuth and @diviperr for helping me making this bot working fine and providing me some good advice during development
 
